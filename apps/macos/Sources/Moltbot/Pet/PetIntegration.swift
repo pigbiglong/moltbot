@@ -2,6 +2,7 @@ import AppKit
 import Foundation
 
 /// 宠物系统集成，协调所有宠物组件
+@MainActor
 final class PetIntegration {
     static let shared = PetIntegration()
 
@@ -34,9 +35,9 @@ final class PetIntegration {
     /// 更新宠物状态
     func updateState() async {
         guard isActive else { return }
-
         if let contentView = windowController.window?.contentView {
             let context = await PetManager.shared.getContext()
+
             renderer.updateState(context.state, in: contentView)
         }
     }

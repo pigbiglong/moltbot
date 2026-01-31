@@ -1,168 +1,211 @@
 import AppKit
 import Foundation
-import CoreAnimation
+import QuartzCore
+import CoreGraphics
 
-/// 宠物渲染层
-struct PetLayers {
-    var background: CALayer
-    var content: CALayer
-    var badge: CALayer?
-    var bubble: CALayer?
+enum PetVisualState {
+    case online
+    case idle
+    case busy
+    case offline
+
+    var color: NSColor {
+        switch self {
+        case .online: return NSColor.systemGreen
+        case .idle: return NSColor.systemBlue
+        case .busy: return NSColor.systemOrange
+        case .offline: return NSColor.systemGray
+        }
+    }
+
+    var animationType: AnimationType {
+        switch self {
+        case .online: return .pulse
+        case .idle: return .breathe
+        case .busy: return .bounce
+        case .offline: return .none
+        }
+    }
+
+    enum AnimationType {
+        case none
+        case breathe
+        case pulse
+        case bounce
+    }
+
+    static func from(petState: PetState) -> PetVisualState {
+        switch petState {
+        case .idle: return .idle
+        case .working: return .busy
+        case .error: return .busy
+        case .disconnected: return .offline
+        }
+    }
 }
 
-/// 宠物渲染器，处理视觉渲染和动画
+@MainActor
 final class PetRenderer: NSObject {
     private let logger = Logger(subsystem: "bot.molt", category: "pet.renderer")
 
-    private var layers: PetLayers?
-    private var currentState: PetState = .idle
-    private var animationTimer: Timer?
+    private var containerLayer: CALayer?
+    private var imageLayer: CALayer?
+    private var borderLayer: CALayer?
+    private var currentVisualState: PetVisualState = .online
+    private var catImage: NSImage?
 
-    /// 获取渲染层
-    func getLayers() -> PetLayers? {
-        layers
-    }
+    private let petSize: CGFloat = 100
+    private let borderWidth: CGFloat = 4
 
-    /// 初始化渲染器
     func setup(in view: NSView) {
-        let background = CALayer()
-        background.frame = view.bounds
-        view.layer = background
+        let container = CALayer()
+        container.frame = CGRect(x: 0, y: 0, width: petSize, height: petSize)
+        container.backgroundColor = NSColor.clear.cgColor
+        view.layer = container
+        containerLayer = container
 
-        let content = CALayer()
-        content.frame = CGRect(x: 20, y: 20, width: 40, height: 40)
-        background.addSublayer(content)
+        loadCatImage()
+        setupImageLayer()
+        setupBorderLayer()
 
-        layers = PetLayers(background: background, content: content, badge: nil, bubble: nil)
-
-        renderState(.idle, in: view)
+        renderState(.online)
     }
 
-    /// 更新状态并触发动画
+    private func loadCatImage() {
+        let homeDir = NSHomeDirectory()
+        let paths = [
+            Bundle.main.resourcePath.map { "\($0)/PetIcons/cat-online.png" },
+            "Resources/PetIcons/cat-online.png",
+            "apps/macos/Resources/PetIcons/cat-online.png",
+            "/Users/zyjk/Desktop/project/moltbot/apps/macos/Resources/PetIcons/cat-online.png",
+            "\(homeDir)/.moltbot/PetIcons/cat-online.png",
+            "\(homeDir)/.clawdbot/PetIcons/cat-online.png",
+        ].compactMap { $0 }
+
+        for path in paths {
+            if let image = NSImage(contentsOfFile: path) {
+                catImage = image
+                logger.info("Loaded cat image from: \(path)")
+                return
+            }
+        }
+
+        catImage = createPlaceholderImage()
+        logger.warning("Cat image not found, using placeholder")
+    }
+
+    private func setupImageLayer() {
+        guard let image = catImage, let container = containerLayer else { return }
+
+        let imageLayer = CALayer()
+        imageLayer.frame = container.bounds
+        imageLayer.contents = image
+        imageLayer.contentsGravity = .resizeAspectFill
+        imageLayer.masksToBounds = true
+        imageLayer.cornerRadius = petSize / 2
+
+        container.addSublayer(imageLayer)
+        self.imageLayer = imageLayer
+    }
+
+    private func setupBorderLayer() {
+        guard let container = containerLayer else { return }
+
+        let border = CALayer()
+        border.name = "border"
+        border.frame = container.bounds
+        border.borderColor = currentVisualState.color.withAlphaComponent(0.9).cgColor
+        border.borderWidth = borderWidth
+        border.cornerRadius = petSize / 2
+        border.shadowColor = currentVisualState.color.withAlphaComponent(0.5).cgColor
+        border.shadowOffset = .zero
+        border.shadowRadius = 8
+        border.shadowOpacity = 0.5
+
+        container.addSublayer(border)
+        borderLayer = border
+    }
+
     func updateState(_ state: PetState, in view: NSView) {
-        currentState = state
-        renderState(state, in: view)
-        startAnimation(for: state)
+        let visualState = PetVisualState.from(petState: state)
+        currentVisualState = visualState
+        renderState(visualState)
     }
 
-    /// 渲染当前状态
-    private func renderState(_ state: PetState, in view: NSView) {
-        guard let layers = layers else { return }
+    private func renderState(_ state: PetVisualState) {
+        guard let container = containerLayer, let border = borderLayer else { return }
 
         CATransaction.begin()
         CATransaction.setAnimationDuration(0.3)
 
-        switch state {
-        case .idle:
-            layers.content.opacity = 1.0
-            layers.content.transform = CATransform3DIdentity
-            startBreatheAnimation()
+        border.borderColor = state.color.withAlphaComponent(0.9).cgColor
+        border.shadowColor = state.color.withAlphaComponent(0.5).cgColor
 
-        case .working:
-            layers.content.opacity = 1.0
-            layers.content.transform = CATransform3DMakeScale(1.1, 1.1, 1.0)
-            startBounceAnimation()
+        container.removeAllAnimations()
 
-        case .error:
-            layers.content.opacity = 1.0
-            startShakeAnimation()
-
-        case .disconnected:
-            layers.content.opacity = 0.5
+        switch state.animationType {
+        case .none:
+            break
+        case .breathe:
+            startBreatheAnimation(on: container)
+        case .pulse:
+            startPulseAnimation(on: container)
+        case .bounce:
+            startBounceAnimation(on: container)
         }
 
         CATransaction.commit()
     }
 
-    /// 呼吸动画（idle 状态）
-    private func startBreatheAnimation() {
-        guard let layers = layers else { return }
-
-        let breathe = CABasicAnimation(keyPath: "opacity")
-        breathe.fromValue = 0.7
-        breathe.toValue = 1.0
-        breathe.duration = 1.0
-        breathe.autoreverses = true
-        breathe.repeatCount = .infinity
-        layers.content.add(breathe, forKey: "breathe")
+    private func startBreatheAnimation(on layer: CALayer) {
+        let anim = CABasicAnimation(keyPath: "opacity")
+        anim.fromValue = 0.7
+        anim.toValue = 1.0
+        anim.duration = 1.5
+        anim.autoreverses = true
+        anim.repeatCount = .infinity
+        layer.add(anim, forKey: "breathe")
     }
 
-    /// 弹跳动画（working 状态）
-    private func startBounceAnimation() {
-        guard let layers = layers else { return }
-        layers.content.removeAnimation(forKey: "breathe")
-
-        let bounce = CABasicAnimation(keyPath: "transform.scale.y")
-        bounce.fromValue = 0.95
-        bounce.toValue = 1.05
-        bounce.duration = 0.5
-        bounce.autoreverses = true
-        bounce.repeatCount = .infinity
-        layers.content.add(bounce, forKey: "bounce")
+    private func startPulseAnimation(on layer: CALayer) {
+        let anim = CABasicAnimation(keyPath: "transform.scale")
+        anim.fromValue = 1.0
+        anim.toValue = 1.05
+        anim.duration = 2.0
+        anim.autoreverses = true
+        anim.repeatCount = .infinity
+        layer.add(anim, forKey: "pulse")
     }
 
-    /// 摇晃动画（error 状态）
-    private func startShakeAnimation() {
-        guard let layers = layers else { return }
-        layers.content.removeAnimation(forKey: "breathe")
-        layers.content.removeAnimation(forKey: "bounce")
-
-        let shake = CABasicAnimation(keyPath: "transform.rotation.z")
-        shake.fromValue = -10
-        shake.toValue = 10
-        shake.duration = 0.4
-        shake.autoreverses = true
-        shake.repeatCount = 3
-        layers.content.add(shake, forKey: "shake")
+    private func startBounceAnimation(on layer: CALayer) {
+        let anim = CABasicAnimation(keyPath: "transform.scale.y")
+        anim.fromValue = 0.95
+        anim.toValue = 1.05
+        anim.duration = 0.3
+        anim.autoreverses = true
+        anim.repeatCount = .infinity
+        layer.add(anim, forKey: "bounce")
     }
 
-    /// 获取当前渲染状态
-    func getCurrentState() -> PetState {
-        currentState
-    }
-
-    /// 停止所有动画
     func stopAllAnimations() {
-        guard let layers = layers else { return }
-        layers.content.removeAllAnimations()
-        animationTimer?.invalidate()
-        animationTimer = nil
+        containerLayer?.removeAllAnimations()
+    }
+
+    private func createPlaceholderImage() -> NSImage {
+        let image = NSImage(size: CGSize(width: petSize, height: petSize))
+        image.lockFocus()
+        NSColor.systemGreen.setFill()
+        NSBezierPath(ovalIn: CGRect(x: 0, y: 0, width: petSize, height: petSize)).fill()
+        NSColor.white.setFill()
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.alignment = .center
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: NSFont.systemFont(ofSize: 30),
+            .foregroundColor: NSColor.white,
+            .paragraphStyle: paragraphStyle
+        ]
+        "🐱".draw(at: NSPoint(x: 0, y: petSize/2 - 15), withAttributes: attributes)
+        image.unlockFocus()
+        return image
     }
 }
-
-    /// 更新任务徽章
-    func updateBadge(running: Int, waiting: Int) {
-        guard let layers = layers else { return }
-
-        if let oldBadge = layers.badge {
-            oldBadge.removeFromSuperlayer()
-        }
-
-        if running == 0 && waiting == 0 {
-            layers.badge = nil
-            return
-        }
-
-        let badge = CAShapeLayer()
-        badge.frame = CGRect(x: 55, y: 5, width: 20, height: 20)
-        badge.fillColor = running > 0 ? NSColor.systemGreen.cgColor : NSColor.systemYellow.cgColor
-        badge.path = CGPath(ellipseIn: CGRect(x: 0, y: 0, width: 20, height: 20))
-        layers.background.addSublayer(badge)
-
-        let textLayer = CATextLayer()
-        textLayer.string = String(running > 0 ? running : waiting)
-        textLayer.font = NSFont.systemFont(ofSize: 10, weight: .bold)
-        textLayer.foregroundColor = NSColor.white.cgColor
-        textLayer.alignmentMode = .center
-        textLayer.frame = CGRect(x: 0, y: 0, width: 20, height: 20)
-        badge.addSublayer(textLayer)
-
-        layers.badge = badge
-    }
-
-    /// 隐藏徽章
-    func hideBadge() {
-        guard let layers = layers, let badge = layers.badge else { return }
-        badge.removeFromSuperlayer()
-        layers.badge = nil
-    }

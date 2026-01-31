@@ -1,7 +1,7 @@
 import Foundation
 
 /// 宠物状态，反映任务队列状态
-enum PetState: Equatable, Sendable {
+enum PetState: Codable, Equatable, Sendable {
     case idle                              // 无任务运行，宠物休息
     case working(runningCount: Int, waitingCount: Int) // 有任务执行中
     case error(message: String)               // 最近任务失败

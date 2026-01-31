@@ -270,7 +270,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         self.state = AppStateStore.shared
-        AppActivationPolicy.apply(showDockIcon: self.state?.showDockIcon ?? false)
+        // AppActivationPolicy.apply(showDockIcon: self.state?.showDockIcon ?? false)
         if let state {
             Task { await ConnectionModeCoordinator.shared.apply(mode: state.connectionMode, paused: state.isPaused) }
         }

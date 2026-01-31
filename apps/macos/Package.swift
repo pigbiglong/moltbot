@@ -57,6 +57,16 @@ let package = Package(
             ],
             exclude: [
                 "Resources/Info.plist",
+                "Sources/Moltbot/Pet/PetExtensionManager.swift",
+                "Sources/Moltbot/Pet/PetIntegration.swift",
+                "Sources/Moltbot/Pet/PetInteractionHandler.swift",
+                "Sources/Moltbot/Pet/PetManager.swift",
+                "Sources/Moltbot/Pet/PetRenderer.swift",
+                "Sources/Moltbot/Pet/PetState.swift",
+                "Sources/Moltbot/Pet/PetWindowController.swift",
+                "Sources/Moltbot/Pet/TaskMonitorController.swift",
+                "Sources/Moltbot/Pet/Packages/DefaultIconPet.swift",
+                "Sources/Moltbot/Pet/PetSettings.swift",
             ],
             resources: [
                 .copy("Resources/Moltbot.icns"),

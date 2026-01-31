@@ -95,15 +95,44 @@ process action:kill sessionId:XXX
 
 ## Codex CLI
 
-**Model:** `gpt-5.2-codex` is the default (set in ~/.codex/config.toml)
+Codex 是 OpenAI 的本地编码 Agent，提供 CLI 和 IDE 扩展。
 
-### Flags
+```bash
+# CLI 使用
+bash pty:true workdir:~/project command:"codex exec 'Your task'"
 
+# 单独执行
+codex exec "prompt"
+```
+
+### 安装方式
+```bash
+# npm
+npm install -g @openai/codex
+
+# Homebrew
+brew install --cask codex
+
+# 直接下载二进制
+# macOS (Apple Silicon): codex-aarch64-apple-darwin.tar.gz
+# Linux: codex-x86_64-unknown-linux-musl.tar.gz
+```
+
+### 登录方式
+| 方式 | 说明 |
+|------|------|
+| ChatGPT 账户 | 推荐：Plus/Pro/Team/Edu/Enterprise 计划 |
+| API Key | 需要额外配置 |
+
+### IDE 扩展
+支持 VS Code、Cursor、Windsurf 编辑器安装
+
+### 主要 Flags
 | Flag | Effect |
 |------|--------|
-| `exec "prompt"` | One-shot execution, exits when done |
-| `--full-auto` | Sandboxed but auto-approves in workspace |
-| `--yolo` | NO sandbox, NO approvals (fastest, most dangerous) |
+| `exec "prompt"` | 一次性执行，完成后退出 |
+| `--full-auto` | 沙盒模式，自动批准更改 |
+| `--yolo` | 无沙盒，无确认（最快，最危险） | |
 
 ### Building/Creating
 ```bash
@@ -152,21 +181,110 @@ gh pr comment <PR#> --body "<review content>"
 
 ## Claude Code
 
+Claude Code 是 Anthropic 的编码 Agent，支持 CLI、Web、Desktop、IDE 等多种形态。
+
 ```bash
 # With PTY for proper terminal output
 bash pty:true workdir:~/project command:"claude 'Your task'"
 
 # Background
 bash pty:true workdir:~/project background:true command:"claude 'Your task'"
+
+# Pipeline mode (streaming output)
+tail -f app.log | claude -p "异常时通知我"
 ```
+
+### 主要功能
+- **构建功能**：描述需求 → 制定计划 → 写代码 → 确保运行
+- **调试修复**：描述 bug 或粘贴错误信息 → 分析并修复
+- **代码库导航**：了解项目结构，查找信息
+- **自动化任务**：修复 lint、解决冲突、编写发布说明
+
+### 多平台支持
+| 平台 | 说明 |
+|------|------|
+| CLI | 核心体验，终端运行 `claude` |
+| Web | 浏览器访问 claude.ai/code，支持并行任务 |
+| Desktop | 独立应用，支持 git worktree 并行会话 |
+| VS Code | 原生扩展，内联 diff、@-提及、计划审查 |
+| JetBrains | IntelliJ/PyCharm/WebStorm 插件 |
+| GitHub Actions | CI 中自动化代码审查、Issue 处理 |
+| GitLab CI | MR 和 Issue 驱动自动化 |
+| Slack | @mentions 触发任务，返回 PR |
+| Chrome | 浏览器连接，实时调试、设计验证 |
+
+### MCP 集成
+支持 MCP (Model Context Protocol)，可连接外部数据源：
+- Google Drive 读取设计文档
+- Figma 获取设计资源
+- Slack 协作
+- Jira 管理工单
 
 ---
 
 ## OpenCode
 
+OpenCode 是开源 AI 编码 Agent，提供终端界面、桌面应用、IDE 扩展。
+
 ```bash
+# 终端使用
 bash pty:true workdir:~/project command:"opencode run 'Your task'"
+
+# Docker 运行
+docker run -it --rm ghcr.io/anomalyco/opencode
 ```
+
+### 安装方式
+```bash
+# 官方脚本
+curl -fsSL https://opencode.ai/install | bash
+
+# npm
+npm install -g opencode-ai
+
+# Homebrew
+brew install anomalyco/tap/opencode
+
+# Windows
+choco install opencode
+scoop install opencode
+```
+
+### 终端要求
+需要现代终端模拟器：WezTerm、Alacritty、Ghostty、Kitty
+
+### 配置 Provider
+```bash
+/connect          # 选择 Provider，前往 opencode.ai/auth 获取 API Key
+```
+
+### 初始化项目
+```bash
+cd /path/to/project
+opencode
+/init             # 分析项目，创建 AGENTS.md
+```
+
+### 使用模式
+| 模式 | 切换 | 说明 |
+|------|------|------|
+| Plan | Tab | 只建议不修改，适合方案讨论 |
+| Build | Tab | 执行更改 |
+
+### 核心命令
+| 命令 | 说明 |
+|------|------|
+| `@文件路径` | 直接引用文件，如 `@packages/functions/src/api/index.ts` |
+| `/undo` | 撤销上一次更改 |
+| `/redo` | 重做更改 |
+| `/share` | 生成分享链接 |
+| 图片拖拽 | 可将图片拖入终端作为参考 |
+
+### 主要功能
+- 解释代码库结构
+- 添加新功能（Plan → Build 迭代）
+- 直接修改代码
+- 支持多 LLM Provider 配置
 
 ---
 

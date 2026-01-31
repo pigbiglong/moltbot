@@ -5,13 +5,6 @@ import OSLog
 final class TaskMonitorController: NSObject {
     private let logger = Logger(subsystem: "bot.molt", category: "pet.taskmonitor")
 
-    private var gatewayClient: GatewayBrowserClient?
-
-    /// 设置 Gateway 客户端
-    func setGatewayClient(_ client: GatewayBrowserClient?) {
-        self.gatewayClient = client
-    }
-
     /// 处理任务开始事件
     func handleJobStarted(_ job: JobInfo) async {
         logger.info("job started: \(job.name) (\(job.id))")

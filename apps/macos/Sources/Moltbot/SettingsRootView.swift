@@ -53,11 +53,11 @@ struct SettingsRootView: View {
 
                 SkillsSettings(state: self.state)
                     .tabItem { Label("Skills", systemImage: "sparkles") }
-                    .tag(SettingsTab.skills)
+                     .tag(SettingsTab.skills)
 
-                PetSettings(state: self.state)
-                    .tabItem { Label("Pet", systemImage: "pawprint.fill") }
-                    .tag(SettingsTab.pet)
+                // PetSettings(state: self.state)
+                //     .tabItem { Label("Pet", systemImage: "pawprint.fill") }
+                //     .tag(SettingsTab.pet)
 
                 PermissionsSettings(
                     status: self.permissionMonitor.status,
@@ -187,7 +187,7 @@ enum SettingsTab: CaseIterable {
         switch self {
         case .general: "General"
         case .channels: "Channels"
-        case . skills: "Skills"
+        case .skills: "Skills"
         case .sessions: "Sessions"
         case .cron: "Cron"
         case .config: "Config"
@@ -198,7 +198,6 @@ enum SettingsTab: CaseIterable {
         case .about: "About"
         case .pet: "Pet"
         }
-    }
     }
 
     var systemImage: String {
@@ -212,6 +211,7 @@ enum SettingsTab: CaseIterable {
         case .instances: "network"
         case .voiceWake: "waveform.circle"
         case .permissions: "lock.shield"
+        case .pet: "pawprint.fill"
         case .debug: "ant"
         case .about: "info.circle"
         }

@@ -92,7 +92,7 @@ final class AppState {
         didSet {
             self.ifNotPreview {
                 UserDefaults.standard.set(self.showDockIcon, forKey: showDockIconKey)
-                AppActivationPolicy.apply(showDockIcon: self.showDockIcon)
+                // AppActivationPolicy.apply(showDockIcon: self.showDockIcon)
             }
         }
     }
@@ -320,12 +320,18 @@ final class AppState {
             Task { await TalkModeController.shared.setEnabled(self.talkEnabled) }
         }
 
-         self.petEnabled = UserDefaults.standard.object(forKey: petEnabledKey) as? Bool ?? true
-         self.petPosition = UserDefaults.standard.string(forKey: petPositionKey) ?? "bottomRight"
-         self.petWakeWordPrefix = UserDefaults.standard.string(forKey: petWakeWordPrefixKey) ?? "Pet"
-         self.isInitializing = false
+        self.petEnabled = UserDefaults.standard.object(forKey: petEnabledKey) as? Bool ?? true
+        self.petPosition = UserDefaults.standard.string(forKey: petPositionKey) ?? "bottomRight"
+        self.petWakeWordPrefix = UserDefaults.standard.string(forKey: petWakeWordPrefixKey) ?? "Pet"
+        self.isInitializing = false
         if !self.isPreview {
             self.startConfigWatcher()
+            // 启动宠物系统
+            if self.petEnabled {
+                Task {
+                    await PetIntegration.shared.start()
+                }
+            }
         }
     }
 
@@ -659,6 +665,40 @@ final class AppState {
         guard let data = try? JSONEncoder().encode(chime) else { return }
         UserDefaults.standard.set(data, forKey: key)
     }
+
+    // MARK: - Pet Properties
+    var petEnabled: Bool = true {
+        didSet {
+            self.ifNotPreview {
+                UserDefaults.standard.set(self.petEnabled, forKey: petEnabledKey)
+                if self.petEnabled {
+                    PetIntegration.shared.start()
+                } else {
+                    PetIntegration.shared.stop()
+                }
+            }
+        }
+    }
+
+    var petPosition: String = "bottomRight" {
+        didSet {
+            self.ifNotPreview {
+                UserDefaults.standard.set(self.petPosition, forKey: petPositionKey)
+                if let position = WindowPosition(rawValue: self.petPosition) {
+                    PetWindowController.shared.setPosition(position)
+                }
+            }
+        }
+    }
+
+    var petWakeWordPrefix: String = "Pet" {
+        didSet {
+            self.ifNotPreview {
+                UserDefaults.standard.set(self.petWakeWordPrefix, forKey: petWakeWordPrefixKey)
+                PetWindowController.shared.setWakeWordPrefix(self.petWakeWordPrefix)
+            }
+        }
+    }
 }
 
 extension AppState {
@@ -710,43 +750,44 @@ enum AppStateStore {
     }
 }
 
-@MainActor
-enum AppActivationPolicy {
-    var petEnabled: Bool {
-        didSet {
-            self.ifNotPreview {
-                UserDefaults.standard.set(self.petEnabled, forKey: petEnabledKey)
-                if self.petEnabled {
-                    PetIntegration.shared.start()
-                } else {
-                    PetIntegration.shared.stop()
-                }
-            }
-        }
-    }
+// @MainActor
+// enum AppActivationPolicy {
+////     var petEnabled: Bool {
+////         didSet {
+////             self.ifNotPreview {
+////                 UserDefaults.standard.set(self.petEnabled, forKey: petEnabledKey)
+////                 if self.petEnabled {
+////                     PetIntegration.shared.start()
+////                 } else {
+////                     PetIntegration.shared.stop()
+////                 }
+////             }
+////         }
+////     }
+//// 
+////     var petPosition: String {
+////         didSet {
+////             self.ifNotPreview {
+////                 UserDefaults.standard.set(self.petPosition, forKey: petPositionKey)
+////                 if let position = WindowPosition(rawValue: self.petPosition) {
+////                     PetWindowController.shared.setPosition(position)
+////                 }
+////             }
+////         }
+////     }
+//// 
+////     var petWakeWordPrefix: String {
+////         didSet {
+////             self.ifNotPreview {
+////                 UserDefaults.standard.set(self.petWakeWordPrefix, forKey: petWakeWordPrefixKey)
+////                 PetInteractionHandler().setWakeWordPrefix(self.petWakeWordPrefix)
+////             }
+////         }
+////     }
+//// 
+////     static func apply(showDockIcon: Bool) {
+////         _ = showDockIcon
+////         DockIconManager.shared.updateDockVisibility()
+////     }
+//// }
 
-    var petPosition: String {
-        didSet {
-            self.ifNotPreview {
-                UserDefaults.standard.set(self.petPosition, forKey: petPositionKey)
-                if let position = WindowPosition(rawValue: self.petPosition) {
-                    PetWindowController.shared.setPosition(position)
-                }
-            }
-        }
-    }
-
-    var petWakeWordPrefix: String {
-        didSet {
-            self.ifNotPreview {
-                UserDefaults.standard.set(self.petWakeWordPrefix, forKey: petWakeWordPrefixKey)
-                PetInteractionHandler().setWakeWordPrefix(self.petWakeWordPrefix)
-            }
-        }
-    }
-
-    static func apply(showDockIcon: Bool) {
-        _ = showDockIcon
-        DockIconManager.shared.updateDockVisibility()
-    }
-}
